@@ -4,9 +4,9 @@ import sys, os, getopt, hashlib, requests, json, math
 
 def usage ():
 	print "Usage:"
-	print " "+ sys.argv[0] +" -u [-ncso] <FILE>"
-	print " "+ sys.argv[0] +" -d [-o] <FILE>"
-	print " "+ sys.argv[0] +" -e [-nc] <FILE>\n"
+	print " "+ os.path.basename (sys.argv[0]) +" -u [-ncso] <FILE>"
+	print " "+ os.path.basename (sys.argv[0]) +" -d [-o] <FILE>"
+	print " "+ os.path.basename (sys.argv[0]) +" -e [-nc] <FILE>\n"
 	print "Options:"
 	print " -u\t\t\ttoggle upload mode"
 	print " -d\t\t\ttoggle download mode"
@@ -195,7 +195,7 @@ def mode_edit (opts_data, manifest_data):
 
 def main (argv):
 	opts_data = {
-		"p": argv[0],
+		"p": os.path.basename (argv[0]),
 		"mode": "upload",
 		"name": None,
 		"comment": None,
