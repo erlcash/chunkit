@@ -15,6 +15,7 @@ def usage ():
 	print " -c=COMMENT\t\tset a comment"
 	print " -s=N_BYTES\t\tchange a chunk size"
 	print " -o=FILE\t\tchange an output file"
+	print " -f\t\t\tforce overwrite if output file already exists"
 	print " -V\t\t\tenable verbose mode"
 	print " -h\t\t\tdisplay this help text"
 	print " -v\t\t\tdisplay version information"
@@ -22,12 +23,30 @@ def usage ():
 def version ():
 	print sys.argv[0]+" v1.1"
 
-def mode_upload (opts_data, manifest_data):
+def md5sum (fd):
+	if fd.closed:
+		return None
+
+	# FIXME: check a mode which was used to open a file descriptor
+
+	current_pos = fd.tell ()
+	fd.seek (0, 0)
+	data = fd.read ()
+
+	md5sum = hashlib.md5 (data).hexdigest ()
 	
+	fd.seek (current_pos, 0)
+
+	return md5sum
+
+#
+# Upload mode
+#
+def mode_upload (opts_data, manifest_data):
 	try:
 		fd_in = open (opts_data["input_file"], "rb")
 	except IOError as err:
-		print opts_data["p"] +" cannot open input file '"+ opts_data["input_file"] +"': "+ err.strerror
+		print opts_data["p"] +": cannot open input file '"+ opts_data["input_file"] +"': "+ err.strerror
 		sys.exit (1)
 
 	# Set default value for name in a manifest file
@@ -36,6 +55,10 @@ def mode_upload (opts_data, manifest_data):
 
 	if opts_data["output_file"] == None:
 		opts_data["output_file"] = os.path.basename (opts_data["input_file"])+".mf"
+
+	if os.path.exists (opts_data["output_file"]) and opts_data["dont_overwrite"]:
+		print opts_data["p"] +": output file '"+ opts_data["output_file"] +"' already exists. Use '-f' to force overwrite."
+		sys.exit (1)
 
 	fd_in.seek (0, 2)
 	manifest_data["size"] = fd_in.tell ()
@@ -62,8 +85,8 @@ def mode_upload (opts_data, manifest_data):
 		res = requests.put ("http://chunk.io/", data)
 
 		if res.status_code != 201:
-			print opts_data["p"] +"upload failed (HTTP: "+ str (res.status_code) +")"
-			break
+			print opts_data["p"] +": upload failed (HTTP: "+ str (res.status_code) +")"
+			sys.exit (1)
 
 		manifest_data["chunks"].append (res.headers["location"])
 
@@ -75,12 +98,69 @@ def mode_upload (opts_data, manifest_data):
 
 	fd_in.close ()
 
-	fd_out = open (opts_data["output_file"], "w")
+	try:
+		fd_out = open (opts_data["output_file"], "w")
+	except IOError as err:
+		print opts_data["p"] +": cannot open output file '"+opts_data["output_file"]+"': "+err.strerror
+		sys.exit (1)
+
 	fd_out.write (json.dumps (manifest_data, sort_keys = False, indent = 4))
 	fd_out.close ();
 
-def mode_download (opts_data, manifest_data):
-	print "downloading..."
+#
+# Download mode
+#
+def mode_download (opts_data):
+	try:
+		fd_in = open (opts_data["input_file"], "rb")
+	except IOError as err:
+		print opts_data["p"] +" cannot open manifest file '"+ opts_data["input_file"] +"': "+ err.strerror
+		sys.exit (1)
+
+	# Load data from manifest file
+	manifest_data = json.load (fd_in)
+
+	if "name" not in manifest_data:
+		print opts_data["p"] +" missing data in manifest file: 'name' not found"
+		sys.exit (1)
+
+	if "checksum" not in manifest_data:
+		print opts_data["p"] +" missing data in manifest file: 'checksum' not found"
+		sys.exit (1)
+
+	if "chunks" not in manifest_data:
+		print opts_data["p"] +" missing data in manifest file: 'chunks' not found"
+		sys.exit (1)
+
+	if opts_data["output_file"] == None:
+		opts_data["output_file"] = manifest_data["name"]
+
+	if os.path.exists (opts_data["output_file"]) and opts_data["dont_overwrite"]:
+		print opts_data["p"] +": output file '"+ opts_data["output_file"] +"' already exists. Use '-f' to force overwrite."
+		sys.exit (1)
+
+	try:
+		fd_out = open (opts_data["output_file"], "wb+")
+	except IOError as err:
+		print opts_data["p"] +": cannot open output file '"+ opts_data["output_file"] +"': "+err.strerror
+		sys.exit (1)
+
+	for chunk in manifest_data["chunks"]:
+		res = requests.get (chunk)
+
+		if res.status_code != 200:
+			print opts_data["p"] +": download failed for '"+ chunk +"' (HTTP: "+ str (res.status_code) +")"
+			sys.exit (1)
+
+		fd_out.write (res.content)
+
+	# Check checksum
+	checksum = md5sum (fd_out)
+	fd_out.close ()
+
+	if checksum != manifest_data["checksum"]:
+		print opts_data["p"] +": invalid checksum"
+		sys.exit (1)
 
 def mode_edit (opts_data, manifest_data):
 	print "editing..."
@@ -88,13 +168,14 @@ def mode_edit (opts_data, manifest_data):
 def main (argv):
 	opts_data = {
 		"p": argv[0],
-		"mode": None,
+		"mode": "upload",
 		"name": None,
 		"comment": None,
 		"chunk_size": 3984588,
 		"output_file": None,
 		"input_file": None,
-		"verbose": False
+		"verbose": False,
+		"dont_overwrite": True
 	}
 
 	manifest_data = {
@@ -110,7 +191,7 @@ def main (argv):
 		sys.exit (1)
 	
 	try:
-		opts, args = getopt.getopt (argv[1:], "uden:c:s:o:Vhv")
+		opts, args = getopt.getopt (argv[1:], "uden:c:s:o:fVhv")
 	except getopt.GetoptError as err:
 		usage ()
 		sys.exit (1)
@@ -130,6 +211,8 @@ def main (argv):
 			opts_data["chunk_size"] = int (arg)
 		elif opt == "-o":
 			opts_data["output_file"] = arg
+		elif opt == "-f":
+			opts_data["dont_overwrite"] = False
 		elif opt == "-V":
 			opts_data["verbose"] = True
 		elif opt == "-h":
@@ -148,7 +231,7 @@ def main (argv):
 	if opts_data["mode"] == "upload":
 		mode_upload (opts_data, manifest_data)
 	elif opts_data["mode"] == "download":
-		mode_download (opts_data, manifest_data)
+		mode_download (opts_data)
 	elif opts_data["mode"] == "edit":
 		mode_edit (opts_data, manifest_data)
 
