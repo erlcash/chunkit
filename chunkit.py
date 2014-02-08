@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys, os, getopt, hashlib, requests, json, collections
+import sys, os, getopt, hashlib, requests, json, math
 
 def usage ():
 	print "Usage:"
@@ -34,7 +34,8 @@ def md5sum (fd):
 	data = fd.read ()
 
 	md5sum = hashlib.md5 (data).hexdigest ()
-	
+	data = None	
+
 	fd.seek (current_pos, 0)
 
 	return md5sum
@@ -42,7 +43,16 @@ def md5sum (fd):
 #
 # Upload mode
 #
-def mode_upload (opts_data, manifest_data):
+def mode_upload (opts_data):
+
+	manifest_data = {
+		"name": None,
+		"comment": None,
+		"size": 0,
+		"checksum": None,
+		"chunks": []
+	}
+
 	try:
 		fd_in = open (opts_data["input_file"], "rb")
 	except IOError as err:
@@ -64,23 +74,20 @@ def mode_upload (opts_data, manifest_data):
 	manifest_data["size"] = fd_in.tell ()
 	fd_in.seek (0, 0)
 
-	# Calculate checksum
-	data = fd_in.read ()
-	manifest_data["checksum"] = hashlib.md5 (data).hexdigest ()
-	data = None
-	fd_in.seek (0, 0)
-
 	if opts_data["verbose"]:
-		print "Name: "+manifest_data["name"]
-		print "Comment: "+ str (manifest_data["comment"])
-		print "Size: "+ str (manifest_data["size"])
-		print "Checksum: "+ str (manifest_data["checksum"])
+		print "Calculating checksum..."
+
+	# Calculate checksum
+	manifest_data["checksum"] = md5sum (fd_in)
 
 	while True:
 		data = fd_in.read (opts_data["chunk_size"])
 		
 		if not data:
 			break;
+
+		if opts_data["verbose"]:
+			print "Uploading a chunk "+ str (len (manifest_data["chunks"]) + 1) +"/"+ str (int (math.ceil (float (manifest_data["size"]) / float (opts_data["chunk_size"])))) +"..."
 
 		res = requests.put ("http://chunk.io/", data)
 
@@ -91,10 +98,17 @@ def mode_upload (opts_data, manifest_data):
 		manifest_data["chunks"].append (res.headers["location"])
 
 	if opts_data["verbose"]:
+		print "Finished!\n"
+		print "Name: "+manifest_data["name"]
+		print "Comment: "+ str (manifest_data["comment"])
+		print "Size: "+ str (manifest_data["size"])
+		print "Checksum: "+ str (manifest_data["checksum"])
 		print "Chunks:"
 
+		chunk_counter = 1
 		for chunk in manifest_data["chunks"]:
-			print "  "+chunk
+			print "  ["+ str (chunk_counter) +"] "+ chunk
+			chunk_counter += 1
 
 	fd_in.close ()
 
@@ -106,6 +120,9 @@ def mode_upload (opts_data, manifest_data):
 
 	fd_out.write (json.dumps (manifest_data, sort_keys = False, indent = 4))
 	fd_out.close ();
+
+	if opts_data["verbose"]:
+		print "\nManifest file '"+ opts_data["output_file"] +"' created."
 
 #
 # Download mode
@@ -146,6 +163,10 @@ def mode_download (opts_data):
 		sys.exit (1)
 
 	for chunk in manifest_data["chunks"]:
+
+		if opts_data["verbose"]:
+			print "Downloading a chunk "+ str (len (manifest_data["chunks"]) + 1) +"/"+ str (int (math.ceil (float (manifest_data["size"]) / float (opts_data["chunk_size"])))) +"..."
+
 		res = requests.get (chunk)
 
 		if res.status_code != 200:
@@ -155,6 +176,9 @@ def mode_download (opts_data):
 		fd_out.write (res.content)
 
 	# Check checksum
+	if opts_data["verbose"]:
+		print "Checking a checksum..."
+	
 	checksum = md5sum (fd_out)
 	fd_out.close ()
 
@@ -162,8 +186,12 @@ def mode_download (opts_data):
 		print opts_data["p"] +": invalid checksum"
 		sys.exit (1)
 
+	if opts_data["verbose"]:
+		print "Checksum matches."
+		print "Output file '"+ opts_data["output_file"] +"' created."
+
 def mode_edit (opts_data, manifest_data):
-	print "editing..."
+	print "editing not implemented..."
 
 def main (argv):
 	opts_data = {
@@ -176,14 +204,6 @@ def main (argv):
 		"input_file": None,
 		"verbose": False,
 		"dont_overwrite": True
-	}
-
-	manifest_data = {
-		"name": None,
-		"comment": None,
-		"size": 0,
-		"checksum": None,
-		"chunks": []
 	}
 
 	if (len (argv) - 1) < 1:
@@ -221,19 +241,17 @@ def main (argv):
 		elif opt == "-v":
 			version ()
 			sys.exit (0)
-		else:
-			print "unknown: "+opt+"-"+arg
 
 	opts_data["input_file"] = argv[-1]
 
 	# Decide what to do based on the mode enabled
 	# UPLOAD
 	if opts_data["mode"] == "upload":
-		mode_upload (opts_data, manifest_data)
+		mode_upload (opts_data)
 	elif opts_data["mode"] == "download":
 		mode_download (opts_data)
 	elif opts_data["mode"] == "edit":
-		mode_edit (opts_data, manifest_data)
+		mode_edit (opts_data)
 
 	sys.exit (0)
 
