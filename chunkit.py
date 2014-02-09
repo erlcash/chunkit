@@ -21,7 +21,7 @@ def usage ():
 	print " -v\t\t\tdisplay version information"
 
 def version ():
-	print os.path.basename (sys.argv[0])+" v1.1-2"
+	print os.path.basename (sys.argv[0])+" v1.1-3"
 
 def md5sum (fd):
 	if fd.closed:
@@ -131,22 +131,26 @@ def mode_download (opts_data):
 	try:
 		fd_in = open (opts_data["input_file"], "rb")
 	except IOError as err:
-		print opts_data["p"] +" cannot open manifest file '"+ opts_data["input_file"] +"': "+ err.strerror
+		print opts_data["p"] +": cannot open Manifest file '"+ opts_data["input_file"] +"': "+ err.strerror
 		sys.exit (1)
 
 	# Load data from manifest file
-	manifest_data = json.load (fd_in)
+	try:
+		manifest_data = json.load (fd_in)
+	except ValueError:
+		print opts_data["p"] +": invalid data in Manifest file: not a JSON string"
+		sys.exit (1)
 
 	if "name" not in manifest_data:
-		print opts_data["p"] +" missing data in manifest file: 'name' not found"
+		print opts_data["p"] +": missing data in Manifest file: 'name' not found"
 		sys.exit (1)
 
 	if "checksum" not in manifest_data:
-		print opts_data["p"] +" missing data in manifest file: 'checksum' not found"
+		print opts_data["p"] +": missing data in Manifest file: 'checksum' not found"
 		sys.exit (1)
 
 	if "chunks" not in manifest_data:
-		print opts_data["p"] +" missing data in manifest file: 'chunks' not found"
+		print opts_data["p"] +": missing data in Manifest file: 'chunks' not found"
 		sys.exit (1)
 
 	if opts_data["output_file"] == None:
@@ -200,10 +204,15 @@ def mode_edit (opts_data):
 	try:
 		fd_in = open (opts_data["input_file"], "r+")
 	except IOError as err:
-		print opts_data["p"] +" cannot open manifest file '"+ opts_data["input_file"] +"': "+ err.strerror
+		print opts_data["p"] +" cannot open Manifest file '"+ opts_data["input_file"] +"': "+ err.strerror
 		sys.exit (1)
 
-	manifest_data = json.load (fd_in)
+	try:
+		manifest_data = json.load (fd_in)
+	except ValueError:
+		print opts_data["p"] +": invalid data in Manifest file: not a JSON string"
+		sys.exit (1)
+
 	fd_in.seek (0, 0)
 
 	manifest_data["name"] = opts_data["name"]
