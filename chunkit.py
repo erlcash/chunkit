@@ -21,7 +21,7 @@ def usage ():
 	print " -v\t\t\tdisplay version information"
 
 def version ():
-	print os.path.basename (sys.argv[0])+" v1.1"
+	print os.path.basename (sys.argv[0])+" v1.1-1"
 
 def md5sum (fd):
 	if fd.closed:
@@ -226,12 +226,8 @@ def main (argv):
 		"dont_overwrite": True
 	}
 
-	if (len (argv) - 1) < 1:
-		print argv[0]+" no input file specified. See usage '-h'"
-		sys.exit (1)
-	
 	try:
-		opts, args = getopt.getopt (argv[1:], "uden:c:s:o:fVhv")
+		opts, args = getopt.gnu_getopt (argv[1:], "uden:c:s:o:fVhv")
 	except getopt.GetoptError as err:
 		usage ()
 		sys.exit (1)
@@ -262,10 +258,13 @@ def main (argv):
 			version ()
 			sys.exit (0)
 
-	opts_data["input_file"] = argv[-1]
+	if len (args) == 0:
+		print argv[0]+" no input file specified. See usage '-h'"
+		sys.exit (1)
+
+	opts_data["input_file"] = args[-1]
 
 	# Decide what to do based on the mode enabled
-	# UPLOAD
 	if opts_data["mode"] == "upload":
 		mode_upload (opts_data)
 	elif opts_data["mode"] == "download":
