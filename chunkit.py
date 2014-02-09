@@ -5,7 +5,7 @@ import sys, os, getopt, hashlib, requests, json, math, re
 def usage ():
 	print "Usage:"
 	print " "+ os.path.basename (sys.argv[0]) +" -u\t[-ncso]\t<FILE>"
-	print " "+ os.path.basename (sys.argv[0]) +" -d\t[-o]\t<FILE>"
+	print " "+ os.path.basename (sys.argv[0]) +" -d\t[-o]\t<URI>"
 	print " "+ os.path.basename (sys.argv[0]) +" -e\t[-nc]\t<FILE>\n"
 	print "Options:"
 	print " -u\t\t\ttoggle upload mode"
@@ -21,7 +21,7 @@ def usage ():
 	print " -v\t\t\tdisplay version information"
 
 def version ():
-	print os.path.basename (sys.argv[0])+" v1.1-3"
+	print os.path.basename (sys.argv[0])+" v1.2"
 
 def md5sum (fd):
 	if fd.closed:
@@ -128,19 +128,39 @@ def mode_upload (opts_data):
 # Download mode
 #
 def mode_download (opts_data):
-	try:
-		fd_in = open (opts_data["input_file"], "rb")
-	except IOError as err:
-		print opts_data["p"] +": cannot open Manifest file '"+ opts_data["input_file"] +"': "+ err.strerror
-		sys.exit (1)
 
-	# Load data from manifest file
-	try:
-		manifest_data = json.load (fd_in)
-	except ValueError:
-		print opts_data["p"] +": invalid data in Manifest file: not a JSON string"
-		sys.exit (1)
+	is_remote = re.match ("^(http|https)://", opts_data["input_file"])
 
+	if is_remote:
+		# fetch remote content
+		res = requests.get (opts_data["input_file"])
+
+		if res.status_code != 200:
+			print opts_data["p"] +": cannot fetch a remote Manifest file '"+ opts_data["input_file"] +"' (HTTP: "+ str (res.status_code) +")"
+			sys.exit (1)
+
+		try:
+			manifest_data = json.loads (res.content)
+		except ValueError:
+			print opts_data["p"] +": invalid data in Manifest file: not a JSON string"
+			sys.exit (1)
+	else:
+		# open as regular (local) file
+		try:
+			fd_in = open (opts_data["input_file"], "rb")
+		except IOError as err:
+			print opts_data["p"] +": cannot open Manifest file '"+ opts_data["input_file"] +"': "+ err.strerror
+			sys.exit (1)
+
+		try:
+			manifest_data = json.load (fd_in)
+		except ValueError:
+			print opts_data["p"] +": invalid data in Manifest file: not a JSON string"
+			sys.exit (1)
+
+		fd_in.close ()
+
+	# Perform check of mandatory fields
 	if "name" not in manifest_data:
 		print opts_data["p"] +": missing data in Manifest file: 'name' not found"
 		sys.exit (1)
@@ -181,11 +201,11 @@ def mode_download (opts_data):
 		fd_out.write (res.content)
 		chunk_counter += 1
 
-	# Check checksum
 	if opts_data["verbose"]:
 		print "Done!"
 		print "Calculating a checksum..."
 	
+	# Check checksum
 	checksum = md5sum (fd_out)
 	fd_out.close ()
 
@@ -271,7 +291,7 @@ def main (argv):
 			sys.exit (0)
 
 	if len (args) == 0:
-		print argv[0]+" input file not specified. See usage '-h'."
+		print opts_data["p"]+": input file not specified. See usage '-h'."
 		sys.exit (1)
 
 	opts_data["input_file"] = args[-1]
@@ -284,7 +304,7 @@ def main (argv):
 	elif opts_data["mode"] == "edit":
 		mode_edit (opts_data)
 	else:
-		print argv[0]+" run mode not specified. See usage '-h'."
+		print opts_data["p"]+": run mode not specified. See usage '-h'."
 
 	sys.exit (0)
 
