@@ -21,7 +21,7 @@ def usage ():
 	print " -v\t\t\tdisplay version information"
 
 def version ():
-	print sys.argv[0]+" v1.1"
+	print os.path.basename (sys.argv[0])+" v1.1"
 
 def md5sum (fd):
 	if fd.closed:
@@ -46,8 +46,8 @@ def md5sum (fd):
 def mode_upload (opts_data):
 
 	manifest_data = {
-		"name": None,
-		"comment": None,
+		"name": opts_data["name"],
+		"comment": opts_data["comment"],
 		"size": 0,
 		"checksum": None,
 		"chunks": []
@@ -98,7 +98,7 @@ def mode_upload (opts_data):
 		manifest_data["chunks"].append (res.headers["location"])
 
 	if opts_data["verbose"]:
-		print "Finished!\n"
+		print "Done!\n"
 		print "Name: "+manifest_data["name"]
 		print "Comment: "+ str (manifest_data["comment"])
 		print "Size: "+ str (manifest_data["size"])
@@ -190,9 +190,29 @@ def mode_download (opts_data):
 		print "Checksum matches."
 		print "Output file '"+ opts_data["output_file"] +"' created."
 
-def mode_edit (opts_data, manifest_data):
-	print "editing not implemented..."
+#
+# Edit mode
+#
+def mode_edit (opts_data):
+	try:
+		fd_in = open (opts_data["input_file"], "r+")
+	except IOError as err:
+		print opts_data["p"] +" cannot open manifest file '"+ opts_data["input_file"] +"': "+ err.strerror
+		sys.exit (1)
 
+	manifest_data = json.load (fd_in)
+	fd_in.seek (0, 0)
+
+	manifest_data["name"] = opts_data["name"]
+	manifest_data["comment"] = opts_data["comment"]
+
+	fd_in.truncate ()
+	fd_in.write (json.dumps (manifest_data, sort_keys = False, indent = 4))	
+	fd_in.close ()
+
+#
+# ... Main ...
+#
 def main (argv):
 	opts_data = {
 		"p": os.path.basename (argv[0]),
