@@ -1,19 +1,19 @@
 #!/usr/bin/python
 
-import sys, os, getopt, hashlib, requests, json, math
+import sys, os, getopt, hashlib, requests, json, math, re
 
 def usage ():
 	print "Usage:"
-	print " "+ os.path.basename (sys.argv[0]) +" -u [-ncso] <FILE>"
-	print " "+ os.path.basename (sys.argv[0]) +" -d [-o] <FILE>"
-	print " "+ os.path.basename (sys.argv[0]) +" -e [-nc] <FILE>\n"
+	print " "+ os.path.basename (sys.argv[0]) +" -u\t[-ncso]\t<FILE>"
+	print " "+ os.path.basename (sys.argv[0]) +" -d\t[-o]\t<FILE>"
+	print " "+ os.path.basename (sys.argv[0]) +" -e\t[-nc]\t<FILE>\n"
 	print "Options:"
 	print " -u\t\t\ttoggle upload mode"
 	print " -d\t\t\ttoggle download mode"
 	print " -e\t\t\ttoggle edit mode"
 	print " -n=NAME\t\tset a name"
 	print " -c=COMMENT\t\tset a comment"
-	print " -s=N_BYTES\t\tchange a chunk size"
+	print " -s=BYTES\t\tchange a chunk size"
 	print " -o=FILE\t\tchange an output file"
 	print " -f\t\t\tforce overwrite if output file already exists"
 	print " -V\t\t\tenable verbose mode"
@@ -21,7 +21,7 @@ def usage ():
 	print " -v\t\t\tdisplay version information"
 
 def version ():
-	print os.path.basename (sys.argv[0])+" v1.1-1"
+	print os.path.basename (sys.argv[0])+" v1.1-2"
 
 def md5sum (fd):
 	if fd.closed:
@@ -75,7 +75,7 @@ def mode_upload (opts_data):
 	fd_in.seek (0, 0)
 
 	if opts_data["verbose"]:
-		print "Calculating checksum..."
+		print "Calculating a checksum..."
 
 	# Calculate checksum
 	manifest_data["checksum"] = md5sum (fd_in)
@@ -162,10 +162,11 @@ def mode_download (opts_data):
 		print opts_data["p"] +": cannot open output file '"+ opts_data["output_file"] +"': "+err.strerror
 		sys.exit (1)
 
+	chunk_counter = 0
 	for chunk in manifest_data["chunks"]:
 
 		if opts_data["verbose"]:
-			print "Downloading a chunk "+ str (len (manifest_data["chunks"]) + 1) +"/"+ str (int (math.ceil (float (manifest_data["size"]) / float (opts_data["chunk_size"])))) +"..."
+			print "Downloading a chunk "+ str (chunk_counter + 1) +"/"+ str (len (manifest_data["chunks"])) +"..."
 
 		res = requests.get (chunk)
 
@@ -174,10 +175,12 @@ def mode_download (opts_data):
 			sys.exit (1)
 
 		fd_out.write (res.content)
+		chunk_counter += 1
 
 	# Check checksum
 	if opts_data["verbose"]:
-		print "Checking a checksum..."
+		print "Done!"
+		print "Calculating a checksum..."
 	
 	checksum = md5sum (fd_out)
 	fd_out.close ()
@@ -187,7 +190,7 @@ def mode_download (opts_data):
 		sys.exit (1)
 
 	if opts_data["verbose"]:
-		print "Checksum matches."
+		print "Checksum matches.\n"
 		print "Output file '"+ opts_data["output_file"] +"' created."
 
 #
@@ -216,7 +219,7 @@ def mode_edit (opts_data):
 def main (argv):
 	opts_data = {
 		"p": os.path.basename (argv[0]),
-		"mode": "upload",
+		"mode": None,
 		"name": None,
 		"comment": None,
 		"chunk_size": 3984588,
@@ -259,7 +262,7 @@ def main (argv):
 			sys.exit (0)
 
 	if len (args) == 0:
-		print argv[0]+" no input file specified. See usage '-h'"
+		print argv[0]+" input file not specified. See usage '-h'."
 		sys.exit (1)
 
 	opts_data["input_file"] = args[-1]
@@ -271,6 +274,8 @@ def main (argv):
 		mode_download (opts_data)
 	elif opts_data["mode"] == "edit":
 		mode_edit (opts_data)
+	else:
+		print argv[0]+" run mode not specified. See usage '-h'."
 
 	sys.exit (0)
 
