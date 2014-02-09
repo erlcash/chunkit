@@ -2,7 +2,7 @@
 
 ## 1. Description
 
-chunkit is a console client interfacing a file hosting service chunk.io
+*chunkit* is a console client interfacing a file hosting service chunk.io
 aka 'File upload for hackers'.
 
 ## 2. Features
@@ -13,7 +13,7 @@ aka 'File upload for hackers'.
 
 ## 3. Usage
 
-chunkit supports three run modes: upload, download, edit.
+*chunkit* supports three run modes: upload, download, edit.
 
 ### 3.1 Upload mode
 
@@ -25,18 +25,18 @@ size, checksum) and information how to merge the chunks together.
 Upload mode is invoked using an option '-u' followed by a path to a file which ought to be uploaded.
 Optionally other options can be specified.
 
- chunkit -u	[-ncso]	<FILE>
+`chunkit -u	[-ncso]	<FILE>`
 
 ### 3.2 Download mode
 
 This mode is used to download all chunks and merge them together to create the original file.
-In order to do so a Manifest file must be passed to chunkit where required metadata are available.
+In order to do so a Manifest file must be passed to *chunkit* where required metadata are available.
 A Manifest file can either be a local file (i.e. /home/johndoe/old_data.mf) or a remote file accessible
 via HTTP/HTTPS (i.e. http://example.org/data.mf).
 
 Download mode is invoked using an option '-d' followed by a URI of a Manifest file. 
 
- chunkit -d	[-o]	<URI>
+`chunkit -d	[-o]	<URI>`
 
 ### 3.3 Edit mode
 
@@ -44,11 +44,11 @@ This mode is used to update metadata (name, comment) in a Manifest file.
 
 Edit mode is invoked using an option '-e' followed by a path to a Manifest file that ought to be updated.
 
- chunkit -e	[-nc]	<FILE>
+`chunkit -e	[-nc]	<FILE>`
 
 ### 3.4 Options
 
- -u			toggle upload mode
+``` -u			toggle upload mode
  -d			toggle download mode
  -e			toggle edit mode
  -n=NAME	set a name
