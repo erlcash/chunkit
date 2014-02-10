@@ -20,7 +20,7 @@
 #  MA 02110-1301, USA.
 #
 
-import sys, os, getopt, hashlib, requests, json, math, re
+import sys, os, getopt, hashlib, requests, json, math, re, random
 
 def usage ():
 	print "Usage:"
@@ -41,7 +41,7 @@ def usage ():
 	print " -v\t\t\tdisplay version information"
 
 def version ():
-	print os.path.basename (sys.argv[0])+" v1.2"
+	print os.path.basename (sys.argv[0])+" v1.3"
 
 def md5sum (fd):
 	if fd.closed:
@@ -100,14 +100,19 @@ def mode_upload (opts_data):
 	# Calculate checksum
 	manifest_data["checksum"] = md5sum (fd_in)
 
-	while True:
+	chunks = range (int (math.ceil (float (manifest_data["size"]) / float (opts_data["chunk_size"]))))
+	random.shuffle (chunks)
+
+	manifest_data["chunks"] = range (len (chunks)) # initialize an array with dummy values
+
+	chunk_counter = 0
+	for chunk_index in chunks:
+		fd_in.seek (opts_data["chunk_size"] * chunk_index, 0)
+
 		data = fd_in.read (opts_data["chunk_size"])
-		
-		if not data:
-			break;
 
 		if opts_data["verbose"]:
-			print "Uploading a chunk "+ str (len (manifest_data["chunks"]) + 1) +"/"+ str (int (math.ceil (float (manifest_data["size"]) / float (opts_data["chunk_size"])))) +"..."
+			print "Uploading a chunk "+ str (chunk_counter + 1) +"/"+ str (len (chunks)) +"..."
 
 		res = requests.put ("http://chunk.io/", data)
 
@@ -115,7 +120,10 @@ def mode_upload (opts_data):
 			print opts_data["p"] +": upload failed (HTTP: "+ str (res.status_code) +")"
 			sys.exit (1)
 
-		manifest_data["chunks"].append (res.headers["location"])
+		manifest_data["chunks"][chunk_index] = res.headers["location"]
+		chunk_counter += 1
+
+	fd_in.close ()
 
 	if opts_data["verbose"]:
 		print "Done!\n"
@@ -129,8 +137,6 @@ def mode_upload (opts_data):
 		for chunk in manifest_data["chunks"]:
 			print "  ["+ str (chunk_counter) +"] "+ chunk
 			chunk_counter += 1
-
-	fd_in.close ()
 
 	try:
 		fd_out = open (opts_data["output_file"], "w")
