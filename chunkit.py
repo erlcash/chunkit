@@ -33,7 +33,7 @@ def usage ():
 	print " -e\t\t\ttoggle edit mode"
 	print " -n=NAME\t\tset a name"
 	print " -c=COMMENT\t\tset a comment"
-	print " -s=BYTES\t\tchange a chunk size"
+	print " -S=BYTES\t\tchange a chunk size"
 	print " -o=FILE\t\tchange an output file"
 	print " -f\t\t\tforce overwrite if output file already exists"
 	print " -V\t\t\tenable verbose mode"
@@ -301,7 +301,7 @@ def main (argv):
 			opts_data["name"] = arg
 		elif opt == "-c":
 			opts_data["comment"] = arg
-		elif opt == "-s":
+		elif opt == "-S":
 			opts_data["chunk_size"] = int (arg)
 		elif opt == "-o":
 			opts_data["output_file"] = arg
