@@ -24,24 +24,24 @@ import sys, os, getopt, hashlib, requests, json, math, re, random
 
 def usage ():
 	print "Usage:"
-	print " "+ os.path.basename (sys.argv[0]) +" -u\t[-ncso]\t<FILE>"
-	print " "+ os.path.basename (sys.argv[0]) +" -d\t[-o]\t<URI>"
-	print " "+ os.path.basename (sys.argv[0]) +" -e\t[-nc]\t<FILE>\n"
+	print " "+ os.path.basename (sys.argv[0]) +" --upload [-ncso] <FILE>"
+	print " "+ os.path.basename (sys.argv[0]) +" --download [-o] <URI>"
+	print " "+ os.path.basename (sys.argv[0]) +" --edit [-nc] <FILE>\n"
 	print "Options:"
-	print " -u\t\t\ttoggle upload mode"
-	print " -d\t\t\ttoggle download mode"
-	print " -e\t\t\ttoggle edit mode"
+	print " -u, --upload\t\ttoggle upload mode"
+	print " -d, --download\t\ttoggle download mode"
+	print " -e, --edit\t\ttoggle edit mode"
 	print " -n=NAME\t\tset a name"
 	print " -c=COMMENT\t\tset a comment"
 	print " -S=BYTES\t\tchange a chunk size"
 	print " -o=FILE\t\tchange an output file"
 	print " -f\t\t\tforce overwrite if output file already exists"
 	print " -V\t\t\tenable verbose mode"
-	print " -h\t\t\tdisplay this help text"
-	print " -v\t\t\tdisplay version information"
+	print " -h, --help\t\tdisplay this help text"
+	print " -v, --version\t\tdisplay version information"
 
 def version ():
-	print os.path.basename (sys.argv[0])+" v1.3"
+	print os.path.basename (sys.argv[0])+" v1.3-1"
 
 def md5sum (fd):
 	if fd.closed:
@@ -114,7 +114,11 @@ def mode_upload (opts_data):
 		if opts_data["verbose"]:
 			print "Uploading a chunk "+ str (chunk_counter + 1) +"/"+ str (len (chunks)) +"..."
 
-		res = requests.put ("http://chunk.io/", data)
+		try:
+			res = requests.put (opts_data["server"], data)
+		except requests.exceptions.ConnectionError:
+			print opts_data["p"] +": upload failed (Connection error)"
+			sys.exit (1)
 
 		if res.status_code != 201:
 			print opts_data["p"] +": upload failed (HTTP: "+ str (res.status_code) +")"
@@ -158,8 +162,18 @@ def mode_download (opts_data):
 	is_remote = re.match ("^(http|https)://", opts_data["input_file"])
 
 	if is_remote:
-		# fetch remote content
-		res = requests.get (opts_data["input_file"])
+
+		if opts_data["verbose"]:
+			print "Downloading a remote Manifest file '"+ opts_data["input_file"] +"'..."
+
+		try:
+			res = requests.get (opts_data["input_file"])
+		except requests.exceptions.ConnectionError:
+			print opts_data["p"] +": cannot obtain a remote Manifest file '"+ opts_data["input_file"] +"' (Connection failed)"
+			sys.exit (1)
+
+		if opts_data["verbose"]:
+			print "Done!"
 
 		if res.status_code != 200:
 			print opts_data["p"] +": cannot fetch a remote Manifest file '"+ opts_data["input_file"] +"' (HTTP: "+ str (res.status_code) +")"
@@ -218,7 +232,11 @@ def mode_download (opts_data):
 		if opts_data["verbose"]:
 			print "Downloading a chunk "+ str (chunk_counter + 1) +"/"+ str (len (manifest_data["chunks"])) +"..."
 
-		res = requests.get (chunk)
+		try:
+			res = requests.get (chunk)
+		except requests.exceptions.ConnectionError:
+			print opts_data["p"] +": cannot obtain a chunk '"+ chunk +"' (Connection error)"
+			sys.exit (1)
 
 		if res.status_code != 200:
 			print opts_data["p"] +": download failed for '"+ chunk +"' (HTTP: "+ str (res.status_code) +")"
@@ -247,10 +265,15 @@ def mode_download (opts_data):
 # Edit mode
 #
 def mode_edit (opts_data):
+
+	if (opts_data["name"] == None) and (opts_data["comment"] == None):
+		print opts_data["p"] +": nothing to edit. Input data not specified."
+		sys.exit (1);
+
 	try:
 		fd_in = open (opts_data["input_file"], "r+")
 	except IOError as err:
-		print opts_data["p"] +" cannot open Manifest file '"+ opts_data["input_file"] +"': "+ err.strerror
+		print opts_data["p"] +": cannot open Manifest file '"+ opts_data["input_file"] +"': "+ err.strerror
 		sys.exit (1)
 
 	try:
@@ -274,6 +297,7 @@ def mode_edit (opts_data):
 def main (argv):
 	opts_data = {
 		"p": os.path.basename (argv[0]),
+		"server": "http://chunk.io",
 		"mode": None,
 		"name": None,
 		"comment": None,
@@ -285,17 +309,17 @@ def main (argv):
 	}
 
 	try:
-		opts, args = getopt.gnu_getopt (argv[1:], "uden:c:s:o:fVhv")
+		opts, args = getopt.gnu_getopt (argv[1:], "uden:c:s:o:fVhv", ["upload", "download", "edit", "help", "version"])
 	except getopt.GetoptError as err:
 		usage ()
 		sys.exit (1)
 	
 	for opt, arg in opts:
-		if opt == "-u":
+		if opt in ("-u", "--upload"):
 			opts_data["mode"] = "upload"
-		elif opt == "-d":
+		elif opt in ("-d", "--download"):
 			opts_data["mode"] = "download"
-		elif opt == "-e":
+		elif opt in ("-e", "--edit"):
 			opts_data["mode"] = "edit"
 		elif opt == "-n":
 			opts_data["name"] = arg
@@ -309,10 +333,10 @@ def main (argv):
 			opts_data["dont_overwrite"] = False
 		elif opt == "-V":
 			opts_data["verbose"] = True
-		elif opt == "-h":
+		elif opt in ("-h", "--help"):
 			usage ()
 			sys.exit (0)
-		elif opt == "-v":
+		elif opt in ("-v", "--version"):
 			version ()
 			sys.exit (0)
 

@@ -25,7 +25,7 @@ size, checksum) and information how to merge the chunks together.
 Upload mode is invoked using an option '-u' followed by a path to a file which ought to be uploaded.
 Optionally other options can be specified.
 
-`chunkit -u	[-ncso]	<FILE>`
+`chunkit --upload [-ncso] <FILE>`
 
 ### 3.2 Download mode
 
@@ -36,7 +36,7 @@ via HTTP/HTTPS (i.e. http://example.org/data.mf).
 
 Download mode is invoked using an option '-d' followed by a URI of a Manifest file. 
 
-`chunkit -d	[-o]	<URI>`
+`chunkit --download [-o] <URI>`
 
 ### 3.3 Edit mode
 
@@ -44,15 +44,15 @@ This mode is used to update metadata (name, comment) in a Manifest file.
 
 Edit mode is invoked using an option '-e' followed by a path to a Manifest file that ought to be updated.
 
-`chunkit -e	[-nc]	<FILE>`
+`chunkit --edit [-nc] <FILE>`
 
 ### 3.4 Options
 
- -u			toggle upload mode
+ -u, --upload			toggle upload mode
 
- -d			toggle download mode
+ -d, --download			toggle download mode
 
- -e			toggle edit mode
+ -e, --edit			toggle edit mode
 
  -n=NAME	set a name
 
@@ -66,9 +66,9 @@ Edit mode is invoked using an option '-e' followed by a path to a Manifest file 
 
  -V			enable verbose mode
 
- -h			display this help text
+ -h, --help	display this help text
 
- -v			display version information
+ -v, --version	display version information
 
 ## 4. Installation
 
