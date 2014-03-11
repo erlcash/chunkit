@@ -20,7 +20,7 @@
 #  MA 02110-1301, USA.
 #
 
-import sys, os, getopt, hashlib, requests, json, math, re, random
+import sys, os, getopt, hashlib, requests, json, math, re, random, zlib
 
 def usage ():
 	print "Usage:"
@@ -35,13 +35,14 @@ def usage ():
 	print " -c=COMMENT\t\tset a comment"
 	print " -s=BYTES\t\tset a chunk size"
 	print " -o=FILE\t\tset an output file"
+	print " -z\t\t\tenable chunk compression"
 	print " -f\t\t\tforce overwrite if output file already exists"
 	print " -V\t\t\tenable verbose mode"
 	print " -h, --help\t\tdisplay this help text"
 	print " -v, --version\t\tdisplay version information"
 
 def version ():
-	print os.path.basename (sys.argv[0])+" v1.3-2"
+	print os.path.basename (sys.argv[0])+" v1.4"
 
 def md5sum (fd):
 	if fd.closed:
@@ -70,7 +71,8 @@ def mode_upload (opts_data):
 		"comment": opts_data["comment"],
 		"size": 0,
 		"checksum": None,
-		"chunks": []
+		"chunks": [],
+		"compressed": opts_data["compression"]
 	}
 
 	try:
@@ -110,6 +112,9 @@ def mode_upload (opts_data):
 		fd_in.seek (opts_data["chunk_size"] * chunk_index, 0)
 
 		data = fd_in.read (opts_data["chunk_size"])
+
+		if opts_data["compression"]:
+			data = zlib.compress (data, 4)
 
 		if opts_data["verbose"]:
 			print "Uploading a chunk "+ str (chunk_counter + 1) +"/"+ str (len (chunks)) +"..."
@@ -162,7 +167,6 @@ def mode_download (opts_data):
 	is_remote = re.match ("^(http|https)://", opts_data["input_file"])
 
 	if is_remote:
-
 		if opts_data["verbose"]:
 			print "Downloading a remote Manifest file '"+ opts_data["input_file"] +"'..."
 
@@ -228,7 +232,6 @@ def mode_download (opts_data):
 
 	chunk_counter = 0
 	for chunk in manifest_data["chunks"]:
-
 		if opts_data["verbose"]:
 			print "Downloading a chunk "+ str (chunk_counter + 1) +"/"+ str (len (manifest_data["chunks"])) +"..."
 
@@ -242,7 +245,12 @@ def mode_download (opts_data):
 			print opts_data["p"] +": download failed for '"+ chunk +"' (HTTP: "+ str (res.status_code) +")"
 			sys.exit (1)
 
-		fd_out.write (res.content)
+		data = res.content
+
+		if "compressed" in manifest_data and manifest_data["compressed"]:
+			data = zlib.decompress (data)
+
+		fd_out.write (data)
 		chunk_counter += 1
 
 	if opts_data["verbose"]:
@@ -266,10 +274,6 @@ def mode_download (opts_data):
 #
 def mode_edit (opts_data):
 
-	if (opts_data["name"] == None) and (opts_data["comment"] == None):
-		print opts_data["p"] +": nothing to edit. Input data not specified."
-		sys.exit (1);
-
 	try:
 		fd_in = open (opts_data["input_file"], "r+")
 	except IOError as err:
@@ -284,8 +288,11 @@ def mode_edit (opts_data):
 
 	fd_in.seek (0, 0)
 
-	manifest_data["name"] = opts_data["name"]
-	manifest_data["comment"] = opts_data["comment"]
+	if opts_data["name"] != None:
+		manifest_data["name"] = opts_data["name"]
+
+	if opts_data["comment"] != None:
+		manifest_data["comment"] = opts_data["comment"]
 
 	fd_in.truncate ()
 	fd_in.write (json.dumps (manifest_data, sort_keys = False, indent = 4))	
@@ -305,11 +312,12 @@ def main (argv):
 		"output_file": None,
 		"input_file": None,
 		"verbose": False,
-		"dont_overwrite": True
+		"dont_overwrite": True,
+		"compression": False
 	}
 
 	try:
-		opts, args = getopt.gnu_getopt (argv[1:], "uden:c:s:o:fVhv", ["upload", "download", "edit", "help", "version"])
+		opts, args = getopt.gnu_getopt (argv[1:], "uden:c:s:o:zfVhv", ["upload", "download", "edit", "help", "version"])
 	except getopt.GetoptError as err:
 		usage ()
 		sys.exit (1)
@@ -333,6 +341,8 @@ def main (argv):
 				sys.exit (1)
 		elif opt == "-o":
 			opts_data["output_file"] = arg
+		elif opt == "-z":
+			opts_data["compression"] = True
 		elif opt == "-f":
 			opts_data["dont_overwrite"] = False
 		elif opt == "-V":
