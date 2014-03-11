@@ -33,15 +33,15 @@ def usage ():
 	print " -e, --edit\t\ttoggle edit mode"
 	print " -n=NAME\t\tset a name"
 	print " -c=COMMENT\t\tset a comment"
-	print " -S=BYTES\t\tchange a chunk size"
-	print " -o=FILE\t\tchange an output file"
+	print " -s=BYTES\t\tset a chunk size"
+	print " -o=FILE\t\tset an output file"
 	print " -f\t\t\tforce overwrite if output file already exists"
 	print " -V\t\t\tenable verbose mode"
 	print " -h, --help\t\tdisplay this help text"
 	print " -v, --version\t\tdisplay version information"
 
 def version ():
-	print os.path.basename (sys.argv[0])+" v1.3-1"
+	print os.path.basename (sys.argv[0])+" v1.3-2"
 
 def md5sum (fd):
 	if fd.closed:
@@ -325,8 +325,12 @@ def main (argv):
 			opts_data["name"] = arg
 		elif opt == "-c":
 			opts_data["comment"] = arg
-		elif opt == "-S":
-			opts_data["chunk_size"] = int (arg)
+		elif opt == "-s":
+			try:
+				opts_data["chunk_size"] = int (arg)
+			except ValueError:
+				print opts_data["p"] +": invalid chunk size"
+				sys.exit (1)
 		elif opt == "-o":
 			opts_data["output_file"] = arg
 		elif opt == "-f":
