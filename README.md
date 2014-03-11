@@ -48,27 +48,30 @@ Edit mode is invoked using an option '-e' followed by a path to a Manifest file 
 
 ### 3.4 Options
 
- -u, --upload			toggle upload mode
+-u, --upload toggle upload mode
 
- -d, --download			toggle download mode
+-d, --download toggle download mode
 
- -e, --edit			toggle edit mode
+-e, --edit toggle edit mode
 
- -n=NAME	set a name
+-n=NAME set a name
 
- -c=COMMENT	set a comment
+-c=COMMENT set a comment
 
- -s=BYTES	change a chunk size
+-s=BYTES set a chunk size
 
- -o=FILE	change an output file
+-o=FILE set an output file
 
- -f			force overwrite if output file already exists
+-z enable chunk compression
 
- -V			enable verbose mode
+-f force overwrite if output file already exists
 
- -h, --help	display this help text
+-V enable verbose mode
 
- -v, --version	display version information
+-h, --help display this help text
+
+-v, --version display version information
+
 
 ## 4. Installation
 
