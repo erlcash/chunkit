@@ -25,7 +25,7 @@ size, checksum) and information how to merge the chunks together.
 Upload mode is invoked using an option '-u' followed by a path to a file which ought to be uploaded.
 Optionally other options can be specified.
 
-`chunkit --upload [-ncso] <FILE>`
+`chunkit --upload [-ncsozf] <FILE>`
 
 ### 3.2 Download mode
 
@@ -36,7 +36,7 @@ via HTTP/HTTPS (i.e. http://example.org/data.mf).
 
 Download mode is invoked using an option '-d' followed by a URI of a Manifest file. 
 
-`chunkit --download [-o] <URI>`
+`chunkit --download [-of] <URI>`
 
 ### 3.3 Edit mode
 

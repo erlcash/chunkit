@@ -24,8 +24,8 @@ import sys, os, getopt, hashlib, requests, json, math, re, random, zlib
 
 def usage ():
 	print "Usage:"
-	print " "+ os.path.basename (sys.argv[0]) +" --upload [-ncso] <FILE>"
-	print " "+ os.path.basename (sys.argv[0]) +" --download [-o] <URI>"
+	print " "+ os.path.basename (sys.argv[0]) +" --upload [-ncsozf] <FILE>"
+	print " "+ os.path.basename (sys.argv[0]) +" --download [-of] <URI>"
 	print " "+ os.path.basename (sys.argv[0]) +" --edit [-nc] <FILE>\n"
 	print "Options:"
 	print " -u, --upload\t\ttoggle upload mode"
