@@ -42,7 +42,7 @@ def usage ():
 	print " -v, --version\t\tdisplay version information"
 
 def version ():
-	print os.path.basename (sys.argv[0])+" v1.4"
+	print os.path.basename (sys.argv[0])+" v1.4-1"
 
 def md5sum (fd):
 	if fd.closed:
@@ -72,8 +72,9 @@ def mode_upload (opts_data):
 		"size": 0,
 		"checksum": None,
 		"chunks": [],
-		"compressed": opts_data["compression"]
-	}
+		"compressed": opts_data["compression"],
+		"version": 1
+	}	
 
 	try:
 		fd_in = open (opts_data["input_file"], "rb")
