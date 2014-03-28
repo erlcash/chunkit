@@ -20,7 +20,10 @@
 #  MA 02110-1301, USA.
 #
 
-import sys, os, getopt, hashlib, requests, json, math, re, random, zlib
+import sys, os, getopt, hashlib, requests, json, math, re, random, zlib, signal
+
+VERSION = "1.4-2"
+USER_AGENT = "chunkit/"+ VERSION
 
 def usage ():
 	print "Usage:"
@@ -42,7 +45,11 @@ def usage ():
 	print " -v, --version\t\tdisplay version information"
 
 def version ():
-	print os.path.basename (sys.argv[0])+" v1.4-1"
+	print os.path.basename (sys.argv[0])+" v"+ VERSION
+
+def sig_die (signo, frame):
+	print "Signal caught... dying."
+	sys.exit (signo)
 
 def md5sum (fd):
 	if fd.closed:
@@ -121,7 +128,7 @@ def mode_upload (opts_data):
 			print "Uploading a chunk "+ str (chunk_counter + 1) +"/"+ str (len (chunks)) +"..."
 
 		try:
-			res = requests.put (opts_data["server"], data)
+			res = requests.put (opts_data["server"], headers = { "User-Agent": USER_AGENT }, data = data)
 		except requests.exceptions.ConnectionError:
 			print opts_data["p"] +": upload failed (Connection error)"
 			sys.exit (1)
@@ -172,7 +179,7 @@ def mode_download (opts_data):
 			print "Downloading a remote Manifest file '"+ opts_data["input_file"] +"'..."
 
 		try:
-			res = requests.get (opts_data["input_file"])
+			res = requests.get (opts_data["input_file"], headers = { "User-Agent": USER_AGENT })
 		except requests.exceptions.ConnectionError:
 			print opts_data["p"] +": cannot obtain a remote Manifest file '"+ opts_data["input_file"] +"' (Connection failed)"
 			sys.exit (1)
@@ -237,7 +244,7 @@ def mode_download (opts_data):
 			print "Downloading a chunk "+ str (chunk_counter + 1) +"/"+ str (len (manifest_data["chunks"])) +"..."
 
 		try:
-			res = requests.get (chunk)
+			res = requests.get (chunk, headers = { "User-Agent": USER_AGENT })
 		except requests.exceptions.ConnectionError:
 			print opts_data["p"] +": cannot obtain a chunk '"+ chunk +"' (Connection error)"
 			sys.exit (1)
@@ -374,5 +381,9 @@ def main (argv):
 	sys.exit (0)
 
 if __name__ == "__main__":
+
+	signal.signal (signal.SIGINT, sig_die)
+	signal.signal (signal.SIGQUIT, sig_die)
+
 	main (sys.argv);
 
